@@ -137,6 +137,13 @@ select { background:var(--surface2); border:1px solid var(--border); color:var(-
   </div>
 </div>
 
+
+<!-- AUTO LOADING -->
+<div id="auto-loading" style="display:none; min-height:100vh; align-items:center; justify-content:center; flex-direction:column; gap:16px; background:#0f0f0f;">
+  <div style="width:32px;height:32px;border:2px solid #2a2a2a;border-top-color:#4ade80;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  <div style="font-size:13px;color:#555;font-family:'DM Mono',monospace;">Loading data...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 <!-- UPLOAD -->
 <div id="upload-screen">
   <div class="up-logo">VistaCreate</div>
@@ -295,11 +302,33 @@ const clr = k => COLORS[k] || '#555';
 function checkPw() {
   if (document.getElementById('pw-input').value === 'Egorprogramistagain') {
     document.getElementById('lock-screen').style.display = 'none';
-    document.getElementById('upload-screen').style.display = 'flex';
+    loadFromUrl('annotations.json');
   } else {
     document.getElementById('pw-err').style.display = 'block';
     document.getElementById('pw-input').value = '';
   }
+}
+
+function loadFromUrl(url) {
+  const loading = document.getElementById('auto-loading');
+  loading.style.display = 'flex';
+  fetch(url)
+    .then(r => { if (!r.ok) throw new Error('Failed to load'); return r.json(); })
+    .then(data => {
+      allData = data;
+      filtered = [...allData];
+      revData = [...allData];
+      revIdx = 0;
+      loading.style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('topbar-meta').textContent = allData.length.toLocaleString() + ' images';
+      renderDashboard();
+      renderReview();
+    })
+    .catch(err => {
+      loading.style.display = 'none';
+      document.getElementById('upload-screen').style.display = 'flex';
+    });
 }
 
 // ── File loading ───────────────────────────────────────────────────
