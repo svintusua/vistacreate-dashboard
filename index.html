@@ -275,6 +275,13 @@ select { background:var(--surface2); border:1px solid var(--border); color:var(-
           <option value="meme_or_social_content">Meme / Social</option>
           <option value="other">Other</option>
         </select>
+        <select id="r-print" onchange="applyRevFilters()">
+          <option value="">All print relevance</option>
+          <option value="high">Print: High</option>
+          <option value="medium">Print: Medium</option>
+          <option value="low">Print: Low</option>
+          <option value="none">Print: None</option>
+        </select>
         <button class="filter-reset" onclick="resetRevFilters()">Reset</button>
       </div>
       <div class="review-top">
@@ -525,11 +532,13 @@ function applyRevFilters() {
   const vert = document.getElementById('r-vertical').value;
   const conf = document.getElementById('r-confidence').value;
   const asset = document.getElementById('r-asset').value;
+  const print = document.getElementById('r-print').value;
   revData = allData.filter(a =>
     (!seg || a.strategic_fit_segment === seg) &&
     (!vert || a.industry_vertical === vert) &&
     (!conf || a.classification_confidence === conf) &&
-    (!asset || a.visual_asset_type === asset)
+    (!asset || a.visual_asset_type === asset) &&
+    (!print || a.print_relevance === print)
   );
   revIdx = 0;
   buildDots();
@@ -537,7 +546,7 @@ function applyRevFilters() {
 }
 
 function resetRevFilters() {
-  ['r-segment','r-vertical','r-confidence','r-asset'].forEach(id => document.getElementById(id).value = '');
+  ['r-segment','r-vertical','r-confidence','r-asset','r-print'].forEach(id => document.getElementById(id).value = '');
   revData = [...allData];
   revIdx = 0;
   buildDots();
