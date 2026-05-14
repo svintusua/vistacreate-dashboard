@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VistaCreate — Image Upload Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #0f0f0f; --surface: #181818; --surface2: #222; --border: #2a2a2a;
+  --text: #f0f0ee; --text2: #888; --text3: #555;
+  --p1: #4ade80; --p2: #60a5fa; --p3: #fbbf24; --non: #6b7280; --unc: #f472b6;
+  --accent: #4ade80;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+/* Lock */
+#lock-screen { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; padding:40px; }
+.lock-logo { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.2em; color:var(--text3); text-transform:uppercase; }
+.lock-title { font-size:24px; font-weight:300; color:var(--text); text-align:center; }
+.lock-title strong { font-weight:600; color:var(--accent); }
+.lock-box { display:flex; flex-direction:column; gap:10px; width:100%; max-width:300px; }
+.lock-box input { background:var(--surface); border:1px solid var(--border); color:var(--text); padding:12px 16px; border-radius:10px; font-size:14px; font-family:'DM Sans',sans-serif; outline:none; width:100%; }
+.lock-box input:focus { border-color:#444; }
+.lock-btn { background:var(--accent); color:#0f0f0f; border:none; padding:12px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
+.lock-err { color:#f87171; font-size:13px; text-align:center; display:none; }
+
+/* Upload */
+#upload-screen { min-height:100vh; display:none; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:40px; }
+.up-logo { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.2em; color:var(--text3); text-transform:uppercase; }
+.up-title { font-size:26px; font-weight:300; text-align:center; line-height:1.3; }
+.up-title strong { font-weight:600; color:var(--accent); }
+.drop-zone { width:100%; max-width:460px; border:1px dashed var(--border); border-radius:16px; padding:48px 32px; text-align:center; cursor:pointer; transition:all 0.2s; background:var(--surface); }
+.drop-zone:hover, .drop-zone.drag { border-color:var(--accent); background:#1a2a1a; }
+.drop-zone p { font-size:15px; color:var(--text2); }
+.drop-zone small { font-size:12px; color:var(--text3); margin-top:8px; display:block; }
+
+/* App shell */
+#app { display:none; }
+.topbar { position:sticky; top:0; z-index:100; background:rgba(15,15,15,0.95); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:0 24px; height:52px; display:flex; align-items:center; gap:0; }
+.topbar-logo { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.15em; color:var(--text3); text-transform:uppercase; margin-right:20px; }
+.tabs { display:flex; height:100%; }
+.tab { padding:0 18px; height:100%; display:flex; align-items:center; font-size:13px; color:var(--text2); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.15s; white-space:nowrap; }
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.topbar-meta { margin-left:auto; font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); }
+
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+/* ── DASHBOARD ── */
+.content { padding:24px 28px; max-width:1400px; margin:0 auto; }
+.filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:24px; padding:14px 16px; background:var(--surface); border-radius:12px; border:1px solid var(--border); }
+.filter-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; align-self:center; margin-right:4px; }
+select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:8px; font-size:12px; font-family:'DM Sans',sans-serif; cursor:pointer; outline:none; }
+.filter-reset { background:none; border:1px solid var(--border); color:var(--text2); padding:6px 12px; border-radius:8px; font-size:12px; cursor:pointer; transition:all 0.15s; }
+.filter-reset:hover { border-color:var(--accent); color:var(--accent); }
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px; margin-bottom:24px; }
+.kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 16px; display:flex; flex-direction:column; gap:5px; }
+.kpi-val { font-size:26px; font-weight:600; font-family:'DM Mono',monospace; }
+.kpi-label { font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:0.07em; line-height:1.3; }
+.kpi.green .kpi-val { color:var(--p1); }
+.kpi.blue .kpi-val { color:var(--p2); }
+.kpi.yellow .kpi-val { color:var(--p3); }
+.kpi.pink .kpi-val { color:var(--unc); }
+.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:14px; }
+.chart-card.full { grid-column:1/-1; }
+.chart-card h3 { font-size:11px; font-weight:500; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; }
+.chart-wrap { position:relative; flex:1; min-height:200px; }
+.chart-wrap.tall { min-height:300px; }
+.chart-wrap.short { min-height:150px; }
+
+/* ── REVIEW ── */
+.review-content { padding:20px 28px; max-width:1100px; margin:0 auto; }
+.review-top { display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.rev-counter { font-size:13px; color:var(--text2); }
+.rev-nav { display:flex; gap:8px; margin-left:auto; }
+.rev-btn { background:var(--surface); border:1px solid var(--border); color:var(--text); padding:7px 16px; border-radius:8px; font-size:13px; cursor:pointer; transition:all 0.15s; }
+.rev-btn:hover { border-color:#444; }
+.rev-btn:disabled { opacity:0.3; cursor:default; }
+.rev-filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; display:grid; grid-template-columns:260px 1fr; min-height:260px; }
+.img-side { background:var(--surface2); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.img-side img { width:100%; height:100%; object-fit:cover; }
+.no-img { text-align:center; color:var(--text3); font-size:13px; padding:20px; }
+.info-side { padding:22px; display:flex; flex-direction:column; gap:12px; }
+.rev-id { font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; }
+.badge-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.badge { font-size:12px; padding:4px 10px; border-radius:20px; font-weight:500; }
+.badge.p1 { background:#1a3d2a; color:#4ade80; }
+.badge.p2 { background:#1a2840; color:#60a5fa; }
+.badge.p3 { background:#3d3010; color:#fbbf24; }
+.badge.non { background:#252525; color:#9ca3af; }
+.badge.unc { background:#3d1530; color:#f472b6; }
+.conf { font-size:11px; padding:3px 8px; border-radius:20px; }
+.conf.high { background:#1a3020; color:#4ade80; }
+.conf.medium { background:#3d3010; color:#fbbf24; }
+.conf.low { background:#3d1515; color:#f87171; }
+.rev-fields { display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; }
+.rev-field .lbl { font-size:11px; color:var(--text3); margin-bottom:2px; text-transform:uppercase; letter-spacing:0.05em; }
+.rev-field .val { font-size:13px; font-weight:500; }
+.dots-wrap { margin-top:16px; }
+.dots { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px; }
+.dot { width:10px; height:10px; border-radius:50%; cursor:pointer; border:2px solid transparent; flex-shrink:0; transition:transform 0.1s; }
+.dot:hover { transform:scale(1.4); }
+.dot.active { border-color:var(--text); }
+.dot.p1 { background:#4ade80; } .dot.p2 { background:#60a5fa; } .dot.p3 { background:#fbbf24; }
+.dot.non { background:#6b7280; } .dot.unc { background:#f472b6; }
+.legend { display:flex; gap:12px; flex-wrap:wrap; }
+.leg { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text2); }
+.leg-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.kbd { background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; }
+.hint { font-size:12px; color:var(--text3); margin-top:8px; }
+
+@media(max-width:768px){
+  .charts-grid { grid-template-columns:1fr; }
+  .chart-card.full { grid-column:1; }
+  .card { grid-template-columns:1fr; }
+  .img-side { min-height:200px; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOCK -->
+<div id="lock-screen">
+  <div class="lock-logo">VistaCreate</div>
+  <div class="lock-title">Image Upload<br><strong>Analysis</strong></div>
+  <div class="lock-box">
+    <input id="pw-input" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')checkPw()">
+    <button class="lock-btn" onclick="checkPw()">Enter →</button>
+    <div class="lock-err" id="pw-err">Wrong password</div>
+  </div>
+</div>
+
+<!-- UPLOAD -->
+<div id="upload-screen">
+  <div class="up-logo">VistaCreate</div>
+  <div class="up-title">Image Upload<br><strong>Analysis Dashboard</strong></div>
+  <label class="drop-zone" id="drop-zone" for="file-input">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="1.5" style="margin-bottom:12px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <p><strong>Drop annotations.json</strong></p>
+    <p style="margin-top:6px">or click to browse</p>
+    <small>Generated by run_annotation_batch.py</small>
+  </label>
+  <input type="file" id="file-input" accept=".json" style="display:none">
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">VistaCreate</div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</div>
+      <div class="tab" onclick="switchTab('review')">🖼 Image Review</div>
+    </div>
+    <div class="topbar-meta" id="topbar-meta"></div>
+  </div>
+
+  <!-- DASHBOARD TAB -->
+  <div id="tab-dashboard" class="tab-content active">
+    <div class="content">
+      <div class="filters">
+        <span class="filter-label">Filter</span>
+        <select id="f-segment" onchange="applyFilters()">
+          <option value="">All segments</option>
+          <option value="priority_1_product_creator">Priority 1 — Product creator</option>
+          <option value="priority_2_online_seller">Priority 2 — Online seller</option>
+          <option value="priority_3_local_smb">Priority 3 — Local SMB</option>
+          <option value="non_strategic_or_general">Non-strategic</option>
+          <option value="unclear">Unclear</option>
+        </select>
+        <select id="f-vertical" onchange="applyFilters()">
+          <option value="">All verticals</option>
+          <option value="food_and_beverage">Food & Beverage</option>
+          <option value="beauty_and_cosmetics">Beauty & Cosmetics</option>
+          <option value="fashion_and_apparel">Fashion & Apparel</option>
+          <option value="handmade_or_niche_products">Handmade / Niche</option>
+          <option value="health_and_fitness">Health & Fitness</option>
+          <option value="events_and_entertainment">Events</option>
+          <option value="real_estate_or_construction">Real Estate</option>
+          <option value="education_or_courses">Education</option>
+          <option value="retail_and_ecommerce">Retail & E-commerce</option>
+          <option value="consulting_or_professional_services">Consulting</option>
+          <option value="technology_or_saas">Technology</option>
+          <option value="nonprofit_or_community">Nonprofit</option>
+          <option value="personal_or_non_business">Personal</option>
+          <option value="unknown">Unknown</option>
+        </select>
+        <select id="f-confidence" onchange="applyFilters()">
+          <option value="">All confidence</option>
+          <option value="high">High confidence</option>
+          <option value="medium">Medium confidence</option>
+          <option value="low">Low confidence</option>
+        </select>
+        <select id="f-print" onchange="applyFilters()">
+          <option value="">All print relevance</option>
+          <option value="high">Print: High</option>
+          <option value="medium">Print: Medium</option>
+          <option value="low">Print: Low</option>
+          <option value="none">Print: None</option>
+        </select>
+        <button class="filter-reset" onclick="resetFilters()">Reset</button>
+      </div>
+      <div class="kpi-grid" id="kpi-grid"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><h3>Strategic Segment Distribution</h3><div class="chart-wrap short"><canvas id="c1"></canvas></div></div>
+        <div class="chart-card"><h3>Core Product-Brand Workflow Share</h3><div class="chart-wrap short"><canvas id="c2"></canvas></div></div>
+        <div class="chart-card"><h3>Priority 1 Vertical Breakdown</h3><div class="chart-wrap tall"><canvas id="c3"></canvas></div></div>
+        <div class="chart-card"><h3>Overall Industry Vertical Distribution</h3><div class="chart-wrap tall"><canvas id="c4"></canvas></div></div>
+        <div class="chart-card full"><h3>Visual Asset Type Distribution</h3><div class="chart-wrap"><canvas id="c5"></canvas></div></div>
+        <div class="chart-card"><h3>Print Opportunity Share</h3><div class="chart-wrap short"><canvas id="c7"></canvas></div></div>
+        <div class="chart-card"><h3>Commercial Intent Distribution</h3><div class="chart-wrap short"><canvas id="c9"></canvas></div></div>
+        <div class="chart-card full"><h3>Print Relevance by Strategic Segment</h3><div class="chart-wrap"><canvas id="c8"></canvas></div></div>
+        <div class="chart-card full"><h3>Commercial Intent by Visual Asset Type</h3><div class="chart-wrap tall"><canvas id="c10"></canvas></div></div>
+        <div class="chart-card"><h3>Subject Role Distribution</h3><div class="chart-wrap"><canvas id="c11"></canvas></div></div>
+        <div class="chart-card"><h3>Classification Confidence</h3><div class="chart-wrap"><canvas id="c-conf"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REVIEW TAB -->
+  <div id="tab-review" class="tab-content">
+    <div class="review-content">
+      <div class="rev-filters">
+        <select id="r-segment" onchange="applyRevFilters()">
+          <option value="">All segments</option>
+          <option value="priority_1_product_creator">Priority 1</option>
+          <option value="priority_2_online_seller">Priority 2</option>
+          <option value="priority_3_local_smb">Priority 3</option>
+          <option value="non_strategic_or_general">Non-strategic</option>
+          <option value="unclear">Unclear</option>
+        </select>
+        <select id="r-vertical" onchange="applyRevFilters()">
+          <option value="">All verticals</option>
+          <option value="food_and_beverage">Food & Beverage</option>
+          <option value="beauty_and_cosmetics">Beauty & Cosmetics</option>
+          <option value="fashion_and_apparel">Fashion & Apparel</option>
+          <option value="handmade_or_niche_products">Handmade / Niche</option>
+          <option value="health_and_fitness">Health & Fitness</option>
+          <option value="events_and_entertainment">Events</option>
+          <option value="personal_or_non_business">Personal</option>
+          <option value="unknown">Unknown</option>
+        </select>
+        <select id="r-confidence" onchange="applyRevFilters()">
+          <option value="">All confidence</option>
+          <option value="high">High confidence</option>
+          <option value="medium">Medium confidence</option>
+        </select>
+        <button class="filter-reset" onclick="resetRevFilters()">Reset</button>
+      </div>
+      <div class="review-top">
+        <span class="rev-counter" id="rev-counter"></span>
+        <div class="rev-nav">
+          <button class="rev-btn" id="rev-prev" onclick="revPrev()">← Назад</button>
+          <button class="rev-btn" id="rev-next" onclick="revNext()">Далі →</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="img-side" id="rev-img"></div>
+        <div class="info-side" id="rev-info"></div>
+      </div>
+      <div class="dots-wrap">
+        <div class="dots" id="rev-dots"></div>
+        <div class="legend">
+          <div class="leg"><div class="leg-dot" style="background:#4ade80"></div>Priority 1</div>
+          <div class="leg"><div class="leg-dot" style="background:#60a5fa"></div>Priority 2</div>
+          <div class="leg"><div class="leg-dot" style="background:#fbbf24"></div>Priority 3</div>
+          <div class="leg"><div class="leg-dot" style="background:#6b7280"></div>Non-strategic</div>
+          <div class="leg"><div class="leg-dot" style="background:#f472b6"></div>Unclear</div>
+        </div>
+        <div class="hint">Navigation: <span class="kbd">←</span> <span class="kbd">→</span> or buttons above</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let allData = [], filtered = [], revData = [], revIdx = 0, charts = {};
+
+const SEG_CLASS = { priority_1_product_creator:'p1', priority_2_online_seller:'p2', priority_3_local_smb:'p3', non_strategic_or_general:'non', unclear:'unc' };
+const SEG_LABEL = { priority_1_product_creator:'Priority 1 — Product creator', priority_2_online_seller:'Priority 2 — Online seller', priority_3_local_smb:'Priority 3 — Local SMB', non_strategic_or_general:'Non-strategic', unclear:'Unclear' };
+const COLORS = { priority_1_product_creator:'#4ade80', priority_2_online_seller:'#60a5fa', priority_3_local_smb:'#fbbf24', non_strategic_or_general:'#6b7280', unclear:'#f472b6', core:'#4ade80', adjacent:'#60a5fa', not_relevant:'#374151', high:'#4ade80', medium:'#fbbf24', low:'#f87171', none:'#374151' };
+const LABELS = { priority_1_product_creator:'P1', priority_2_online_seller:'P2', priority_3_local_smb:'P3', non_strategic_or_general:'Non-strategic', unclear:'Unclear', food_and_beverage:'Food & Bev', beauty_and_cosmetics:'Beauty', fashion_and_apparel:'Fashion', handmade_or_niche_products:'Handmade', health_and_fitness:'Health', events_and_entertainment:'Events', real_estate_or_construction:'Real Estate', education_or_courses:'Education', retail_and_ecommerce:'Retail', consulting_or_professional_services:'Consulting', technology_or_saas:'Tech/SaaS', nonprofit_or_community:'Nonprofit', personal_or_non_business:'Personal', unknown:'Unknown', product_photo:'Product photo', product_lifestyle_photo:'Lifestyle photo', packaging_or_label:'Packaging/Label', menu_or_catalog:'Menu/Catalog', mockup:'Mockup', brand_identity_asset:'Brand asset', venue_or_location_photo:'Venue', person_or_service_photo:'Person/Service', event_or_activity_photo:'Event', screenshot_or_ui:'Screenshot', background_or_texture:'Background', document_or_text_heavy:'Document', meme_or_social_content:'Meme/Social', other:'Other', unclear:'Unclear', main_subject:'Main subject', secondary_subject:'Secondary', contextual_use:'Contextual', brand_or_print_asset:'Brand/Print', not_applicable:'N/A' };
+
+const lbl = k => LABELS[k] || k;
+const clr = k => COLORS[k] || '#555';
+
+// ── Auth ───────────────────────────────────────────────────────────
+function checkPw() {
+  if (document.getElementById('pw-input').value === 'Egorprogramistagain') {
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('upload-screen').style.display = 'flex';
+  } else {
+    document.getElementById('pw-err').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+  }
+}
+
+// ── File loading ───────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', e => loadFile(e.target.files[0]));
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); loadFile(e.dataTransfer.files[0]); });
+
+function loadFile(f) {
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      allData = JSON.parse(ev.target.result);
+      filtered = [...allData];
+      revData = [...allData];
+      revIdx = 0;
+      document.getElementById('upload-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('topbar-meta').textContent = allData.length.toLocaleString() + ' images';
+      renderDashboard();
+      renderReview();
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+  r.readAsText(f);
+}
+
+// ── Tab switching ──────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['dashboard','review'][i] === name));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────
+Chart.defaults.color = '#888';
+Chart.defaults.borderColor = '#2a2a2a';
+Chart.defaults.font.family = 'DM Sans';
+
+function applyFilters() {
+  const seg = document.getElementById('f-segment').value;
+  const vert = document.getElementById('f-vertical').value;
+  const conf = document.getElementById('f-confidence').value;
+  const print = document.getElementById('f-print').value;
+  filtered = allData.filter(a =>
+    (!seg || a.strategic_fit_segment === seg) &&
+    (!vert || a.industry_vertical === vert) &&
+    (!conf || a.classification_confidence === conf) &&
+    (!print || a.print_relevance === print)
+  );
+  renderDashboard();
+}
+
+function resetFilters() {
+  ['f-segment','f-vertical','f-confidence','f-print'].forEach(id => document.getElementById(id).value = '');
+  filtered = [...allData];
+  renderDashboard();
+}
+
+function cnt(field, data = filtered) {
+  const c = {};
+  data.forEach(a => { const v = a[field]||'unknown'; c[v] = (c[v]||0)+1; });
+  return c;
+}
+function pct(n, total = filtered.length) { return total ? (n/total*100).toFixed(1)+'%' : '0%'; }
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function barChart(id, labels, values, colors, opts={}) {
+  destroyChart(id);
+  const ctx = document.getElementById(id); if(!ctx) return;
+  charts[id] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderRadius:4, borderSkipped:false }] },
+    options:{ indexAxis:opts.horizontal?'y':'x', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>` ${c.raw} (${pct(c.raw)})` } } },
+      scales:{ x:{grid:{color:'#1e1e1e'},ticks:{font:{size:10}}}, y:{grid:{color:'#1e1e1e'},ticks:{font:{size:10}}} }
+    }
+  });
+}
+
+function donutChart(id, labels, values, colors) {
+  destroyChart(id);
+  const ctx = document.getElementById(id); if(!ctx) return;
+  charts[id] = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderWidth:0, hoverOffset:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins:{ legend:{position:'right',labels:{boxWidth:10,padding:10,font:{size:11}}},
+        tooltip:{ callbacks:{ label:c=>` ${c.label}: ${c.raw} (${pct(c.raw)})` } } }
+    }
+  });
+}
+
+function stackedChart(id, xLabels, datasets) {
+  destroyChart(id);
+  const ctx = document.getElementById(id); if(!ctx) return;
+  charts[id] = new Chart(ctx, {
+    type:'bar', data:{ labels:xLabels, datasets },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{boxWidth:10,font:{size:11}}} },
+      scales:{ x:{stacked:true,grid:{color:'#1e1e1e'},ticks:{font:{size:10}}}, y:{stacked:true,grid:{color:'#1e1e1e'},max:100,ticks:{font:{size:10},callback:v=>v+'%'}} }
+    }
+  });
+}
+
+function renderDashboard() {
+  const n = filtered.length; if (!n) return;
+  const p1 = filtered.filter(a => a.strategic_fit_segment==='priority_1_product_creator').length;
+  const core = filtered.filter(a => a.product_brand_workflow_relevance==='core').length;
+  const printHM = filtered.filter(a => ['high','medium'].includes(a.print_relevance)).length;
+  const highComm = filtered.filter(a => a.commercial_intent_likelihood==='high').length;
+  const prodVisual = filtered.filter(a => ['product_photo','product_lifestyle_photo','packaging_or_label','mockup','menu_or_catalog'].includes(a.visual_asset_type)).length;
+  const packLabel = filtered.filter(a => ['packaging_or_label','menu_or_catalog'].includes(a.visual_asset_type)).length;
+  const nonStrat = filtered.filter(a => a.strategic_fit_segment==='non_strategic_or_general').length;
+
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="kpi green"><div class="kpi-val">${pct(p1)}</div><div class="kpi-label">Priority 1 Product Creator</div></div>
+    <div class="kpi green"><div class="kpi-val">${pct(core)}</div><div class="kpi-label">Core Workflow Share</div></div>
+    <div class="kpi blue"><div class="kpi-val">${pct(prodVisual)}</div><div class="kpi-label">Product Visual Share</div></div>
+    <div class="kpi blue"><div class="kpi-val">${pct(printHM)}</div><div class="kpi-label">Print-Relevant Share</div></div>
+    <div class="kpi yellow"><div class="kpi-val">${pct(highComm)}</div><div class="kpi-label">High Commercial Intent</div></div>
+    <div class="kpi yellow"><div class="kpi-val">${pct(packLabel)}</div><div class="kpi-label">Packaging / Label / Menu</div></div>
+    <div class="kpi"><div class="kpi-val">${pct(nonStrat)}</div><div class="kpi-label">Non-Strategic</div></div>
+    <div class="kpi pink"><div class="kpi-val">${n.toLocaleString()}</div><div class="kpi-label">Images in Selection</div></div>
+  `;
+
+  const segs = ['priority_1_product_creator','priority_2_online_seller','priority_3_local_smb','non_strategic_or_general','unclear'];
+  const segC = cnt('strategic_fit_segment');
+  donutChart('c1', segs.map(lbl), segs.map(s=>segC[s]||0), segs.map(clr));
+
+  const wfC = cnt('product_brand_workflow_relevance');
+  donutChart('c2', ['Core','Adjacent','Not relevant','Unclear'], [wfC.core||0,wfC.adjacent||0,wfC.not_relevant||0,wfC.unclear||0], ['#4ade80','#60a5fa','#374151','#f472b6']);
+
+  const p1d = filtered.filter(a=>a.strategic_fit_segment==='priority_1_product_creator');
+  const p1v = Object.entries(cnt('industry_vertical',p1d)).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  barChart('c3', p1v.map(([k])=>lbl(k)), p1v.map(([,v])=>v), '#4ade80', {horizontal:true});
+
+  const verts = Object.entries(cnt('industry_vertical')).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  barChart('c4', verts.map(([k])=>lbl(k)), verts.map(([,v])=>v), '#60a5fa', {horizontal:true});
+
+  const assets = Object.entries(cnt('visual_asset_type')).sort((a,b)=>b[1]-a[1]);
+  const productAssets = ['product_photo','product_lifestyle_photo','packaging_or_label','menu_or_catalog','mockup','brand_identity_asset'];
+  barChart('c5', assets.map(([k])=>lbl(k)), assets.map(([,v])=>v), assets.map(([k])=>productAssets.includes(k)?'#4ade80':'#374151'));
+
+  const printC = cnt('print_relevance');
+  donutChart('c7', ['High','Medium','Low','None'], [printC.high||0,printC.medium||0,printC.low||0,printC.none||0], ['#4ade80','#60a5fa','#fbbf24','#374151']);
+
+  const ciC = cnt('commercial_intent_likelihood');
+  donutChart('c9', ['High','Medium','Low'], [ciC.high||0,ciC.medium||0,ciC.low||0], ['#4ade80','#60a5fa','#6b7280']);
+
+  const segOrder = ['priority_1_product_creator','priority_2_online_seller','priority_3_local_smb','non_strategic_or_general','unclear'];
+  const printOrder = ['high','medium','low','none'];
+  stackedChart('c8', segOrder.map(lbl), printOrder.map((p,i)=>({
+    label:p, backgroundColor:['#4ade80','#60a5fa','#fbbf24','#374151'][i], borderRadius:2,
+    data: segOrder.map(s=>{ const sub=filtered.filter(a=>a.strategic_fit_segment===s); const c=sub.filter(a=>a.print_relevance===p).length; return sub.length?+(c/sub.length*100).toFixed(1):0; })
+  })));
+
+  const assetOrder = assets.slice(0,10).map(([k])=>k);
+  const ciOrder = ['high','medium','low'];
+  stackedChart('c10', assetOrder.map(lbl), ciOrder.map((ci,i)=>({
+    label:ci, backgroundColor:['#4ade80','#60a5fa','#6b7280'][i], borderRadius:2,
+    data: assetOrder.map(at=>{ const sub=filtered.filter(a=>a.visual_asset_type===at); const c=sub.filter(a=>a.commercial_intent_likelihood===ci).length; return sub.length?+(c/sub.length*100).toFixed(1):0; })
+  })));
+
+  const roles = ['main_subject','contextual_use','brand_or_print_asset','secondary_subject','not_applicable','unclear'];
+  const roleC = cnt('subject_role');
+  barChart('c11', roles.map(lbl), roles.map(r=>roleC[r]||0), '#fbbf24', {horizontal:true});
+
+  const confC = cnt('classification_confidence');
+  donutChart('c-conf', ['High','Medium','Low'], [confC.high||0,confC.medium||0,confC.low||0], ['#4ade80','#fbbf24','#f87171']);
+}
+
+// ── Review ─────────────────────────────────────────────────────────
+function applyRevFilters() {
+  const seg = document.getElementById('r-segment').value;
+  const vert = document.getElementById('r-vertical').value;
+  const conf = document.getElementById('r-confidence').value;
+  revData = allData.filter(a =>
+    (!seg || a.strategic_fit_segment === seg) &&
+    (!vert || a.industry_vertical === vert) &&
+    (!conf || a.classification_confidence === conf)
+  );
+  revIdx = 0;
+  buildDots();
+  renderCard();
+}
+
+function resetRevFilters() {
+  ['r-segment','r-vertical','r-confidence'].forEach(id => document.getElementById(id).value = '');
+  revData = [...allData];
+  revIdx = 0;
+  buildDots();
+  renderCard();
+}
+
+function buildDots() {
+  const el = document.getElementById('rev-dots');
+  el.innerHTML = '';
+  revData.forEach((a, i) => {
+    const d = document.createElement('span');
+    d.className = 'dot ' + (SEG_CLASS[a.strategic_fit_segment]||'non');
+    d.title = (SEG_LABEL[a.strategic_fit_segment]||a.strategic_fit_segment) + '\n' + a.image_id;
+    d.onclick = () => { revIdx = i; renderCard(); };
+    el.appendChild(d);
+  });
+}
+
+function renderReview() { buildDots(); renderCard(); }
+
+function renderCard() {
+  if (!revData.length) return;
+  const a = revData[revIdx];
+  document.getElementById('rev-counter').textContent = `${revIdx+1} / ${revData.length}`;
+  document.getElementById('rev-prev').disabled = revIdx === 0;
+  document.getElementById('rev-next').disabled = revIdx === revData.length-1;
+  document.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('active', i===revIdx));
+
+  const imgUrl = a.thumb_url || ('https://cdn.create.vista.com/api/media/'+a.image_id+'/thumb');
+  document.getElementById('rev-img').innerHTML = `<img src="${imgUrl}" alt="" onerror="this.parentNode.innerHTML='<div class=no-img>📷<br><br>Image unavailable</div>'">`;
+
+  const sc = SEG_CLASS[a.strategic_fit_segment]||'non';
+  document.getElementById('rev-info').innerHTML = `
+    <div class="rev-id">${a.image_id}</div>
+    <div class="badge-row">
+      <span class="badge ${sc}">${SEG_LABEL[a.strategic_fit_segment]||a.strategic_fit_segment}</span>
+      <span class="conf ${a.classification_confidence}">${a.classification_confidence} confidence</span>
+    </div>
+    <div class="rev-fields">
+      <div class="rev-field"><div class="lbl">Visual asset type</div><div class="val">${a.visual_asset_type}</div></div>
+      <div class="rev-field"><div class="lbl">Industry vertical</div><div class="val">${a.industry_vertical}</div></div>
+      <div class="rev-field"><div class="lbl">Workflow relevance</div><div class="val">${a.product_brand_workflow_relevance}</div></div>
+      <div class="rev-field"><div class="lbl">Print relevance</div><div class="val">${a.print_relevance}</div></div>
+      <div class="rev-field"><div class="lbl">Product presence</div><div class="val">${a.product_presence}</div></div>
+      <div class="rev-field"><div class="lbl">Subject role</div><div class="val">${a.subject_role}</div></div>
+      <div class="rev-field"><div class="lbl">Commercial intent</div><div class="val">${a.commercial_intent_likelihood}</div></div>
+    </div>
+  `;
+}
+
+function revNext() { if (revIdx < revData.length-1) { revIdx++; renderCard(); } }
+function revPrev() { if (revIdx > 0) { revIdx--; renderCard(); } }
+document.addEventListener('keydown', e => {
+  if (document.getElementById('tab-review').classList.contains('active')) {
+    if (e.key==='ArrowRight') revNext();
+    if (e.key==='ArrowLeft') revPrev();
+  }
+});
+</script>
+</body>
+</html>
