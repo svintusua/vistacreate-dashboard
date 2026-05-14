@@ -143,7 +143,24 @@ select { background:var(--surface2); border:1px solid var(--border); color:var(-
   <div style="width:32px;height:32px;border:2px solid #2a2a2a;border-top-color:#4ade80;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
   <div style="font-size:13px;color:#555;font-family:'DM Mono',monospace;">Loading data...</div>
 </div>
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+<style>@keyframes spin{to{transform:rotate(360deg)}}
+  /* Modal */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; width:100%; max-width:720px; max-height:85vh; overflow-y:auto; padding:28px; display:flex; flex-direction:column; gap:20px; }
+  .modal-header { display:flex; align-items:center; justify-content:space-between; }
+  .modal-header h2 { font-size:16px; font-weight:500; }
+  .modal-close { background:none; border:none; color:var(--text2); font-size:20px; cursor:pointer; padding:4px 8px; border-radius:6px; }
+  .modal-close:hover { background:var(--surface2); color:var(--text); }
+  .modal-section h3 { font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:0.1em; color:var(--text3); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+  .legend-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .legend-item { display:flex; gap:8px; align-items:flex-start; font-size:12px; }
+  .leg-dot2 { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:3px; }
+  .legend-key { font-weight:500; color:var(--text); min-width:130px; flex-shrink:0; font-family:'DM Mono',monospace; font-size:11px; }
+  .legend-desc { color:var(--text2); line-height:1.4; }
+  .help-btn { background:none; border:1px solid var(--border); color:var(--text2); width:28px; height:28px; border-radius:50%; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; flex-shrink:0; }
+  .help-btn:hover { border-color:var(--accent); color:var(--accent); }
+</style>
 <!-- UPLOAD -->
 <div id="upload-screen">
   <div class="up-logo">VistaCreate</div>
@@ -165,6 +182,7 @@ select { background:var(--surface2); border:1px solid var(--border); color:var(-
       <div class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</div>
       <div class="tab" onclick="switchTab('review')">🖼 Image Review</div>
     </div>
+    <button class="help-btn" onclick="document.getElementById('legend-modal').classList.add('open')" title="Legend & field descriptions">?</button>
     <div class="topbar-meta" id="topbar-meta"></div>
   </div>
 
@@ -606,5 +624,82 @@ document.addEventListener('keydown', e => {
   }
 });
 </script>
+
+<!-- LEGEND MODAL -->
+<div class="modal-overlay" id="legend-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Field Legend & Classification Guide</h2>
+      <button class="modal-close" onclick="document.getElementById('legend-modal').classList.remove('open')">✕</button>
+    </div>
+
+    <div class="modal-section">
+      <h3>Strategic Segment</h3>
+      <div class="legend-grid">
+        <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div><span class="legend-key">Priority 1 — Product creator</span><span class="legend-desc">Physical consumer product: food, cosmetics, apparel, handmade items, packaging</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div><span class="legend-key">Priority 2 — Online seller</span><span class="legend-desc">E-commerce, marketplace listings, dropshipping, online store content</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div><span class="legend-key">Priority 3 — Local SMB</span><span class="legend-desc">Local service, venue, salon, restaurant, studio, trainer, local event</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div><span class="legend-key">Non-strategic</span><span class="legend-desc">No business/product/brand context: backgrounds, personal photos, memes, textures</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f472b6"></div><span class="legend-key">Unclear</span><span class="legend-desc">Cannot be classified without additional context</span></div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Workflow Relevance</h3>
+      <div class="legend-grid">
+        <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div><span class="legend-key">Core</span><span class="legend-desc">Directly supports product-brand creation: product photo, packaging, label, mockup, menu, brand asset</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div><span class="legend-key">Adjacent</span><span class="legend-desc">May support business marketing but not a core product-brand asset: venue, lifestyle, team photo</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#374151"></div><span class="legend-key">Not relevant</span><span class="legend-desc">No obvious connection to product, brand, marketing, or print workflows</span></div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Print Relevance</h3>
+      <div class="legend-grid">
+        <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div><span class="legend-key">High</span><span class="legend-desc">Directly related to print output: packaging, label, menu, flyer, business card, sticker, signage</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div><span class="legend-key">Medium</span><span class="legend-desc">Could reasonably be used in print: product photo for catalog, poster, packaging design</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div><span class="legend-key">Low</span><span class="legend-desc">Mostly digital or general marketing content with weak print connection</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#374151"></div><span class="legend-key">None</span><span class="legend-desc">No clear print relevance</span></div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Commercial Intent</h3>
+      <div class="legend-grid">
+        <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div><span class="legend-key">High</span><span class="legend-desc">Strong commercial signal: product shot, catalog image, menu, label, packaging, brand asset</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div><span class="legend-key">Medium</span><span class="legend-desc">Could be business-related: lifestyle image, venue photo, service photo, process photo</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div><span class="legend-key">Low</span><span class="legend-desc">Likely personal, decorative, random, or non-commercial</span></div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Visual Asset Types</h3>
+      <div class="legend-grid">
+        <div class="legend-item"><span class="legend-key">product_photo</span><span class="legend-desc">Real photo of a physical product</span></div>
+        <div class="legend-item"><span class="legend-key">product_lifestyle_photo</span><span class="legend-desc">Product shown in use or in context</span></div>
+        <div class="legend-item"><span class="legend-key">packaging_or_label</span><span class="legend-desc">Packaging, label, sticker, bottle, box, jar, tag</span></div>
+        <div class="legend-item"><span class="legend-key">menu_or_catalog</span><span class="legend-desc">Menu, product catalog, price list, product grid</span></div>
+        <div class="legend-item"><span class="legend-key">mockup</span><span class="legend-desc">Product mockup, apparel mockup, packaging mockup</span></div>
+        <div class="legend-item"><span class="legend-key">brand_identity_asset</span><span class="legend-desc">Logo, brand board, business card, visual identity element</span></div>
+        <div class="legend-item"><span class="legend-key">venue_or_location_photo</span><span class="legend-desc">Interior, exterior, restaurant, salon, store, studio</span></div>
+        <div class="legend-item"><span class="legend-key">person_or_service_photo</span><span class="legend-desc">Service provider, specialist, model, portrait for business</span></div>
+        <div class="legend-item"><span class="legend-key">document_or_text_heavy</span><span class="legend-desc">Document, certificate, flyer, poster, form, text-heavy layout</span></div>
+        <div class="legend-item"><span class="legend-key">background_or_texture</span><span class="legend-desc">Background, texture, pattern, decorative or abstract image</span></div>
+        <div class="legend-item"><span class="legend-key">meme_or_social_content</span><span class="legend-desc">Meme, reposted social content, finished social post</span></div>
+        <div class="legend-item"><span class="legend-key">screenshot_or_ui</span><span class="legend-desc">Screenshot of website, app, social media page, UI</span></div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Classification Confidence</h3>
+      <div class="legend-grid">
+        <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div><span class="legend-key">High</span><span class="legend-desc">Classification is clear and unlikely to be disputed</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div><span class="legend-key">Medium</span><span class="legend-desc">Classification is reasonable but could depend on context</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div><span class="legend-key">Low</span><span class="legend-desc">Classification is uncertain</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
 </body>
 </html>
